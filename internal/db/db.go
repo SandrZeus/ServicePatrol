@@ -11,6 +11,8 @@ func Init(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
+	db.Exec("PRAGMA foreign_keys = ON")
+
 	if err := migrate(db); err != nil {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
@@ -20,7 +22,7 @@ func Init(dbPath string) (*sql.DB, error) {
 
 func migrate(db *sql.DB) error {
 	query := `
-	CREATE TABLE IF NOT EXIST targets (
+	CREATE TABLE IF NOT EXISTS targets (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL,
 		url TEXT NOT NULL,
@@ -33,19 +35,19 @@ func migrate(db *sql.DB) error {
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 
-	CREATE TABLE IF NOT EXIST check_results (
-		id INTEGET PRIMARY KEY AUTOINCREMENT,
+	CREATE TABLE IF NOT EXISTS check_results (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		target_id INTEGER NOT NULL,
 		status_code INTEGER,
 		response_time_ms INTEGER,
 		success BOOLEAN NOT NULL,
 		error_message TEXT,
-		checked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP.
-		FOREIGN KKEY (target_id) REGERENCES targets(id) ON DELETE CASCADE
+		checked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (target_id) REFERENCES targets(id) ON DELETE CASCADE
 	);
 
-	CREATE INDEX IF NOT EXIST idx_check_results_target_id ON check_results(target_id);
-	CREATE INDEX IF NOT EXIST idx_check_results_checked_at ON check_results(checked_at);
+	CREATE INDEX IF NOT EXISTS idx_check_results_target_id ON check_results(target_id);
+	CREATE INDEX IF NOT EXISTS idx_check_results_checked_at ON check_results(checked_at);
 	`
 
 	_, err := db.Exec(query)
