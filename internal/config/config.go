@@ -9,6 +9,7 @@ type Config struct {
 	AlertmanagerURL    string
 	AlertmanagerToggle bool
 	DBPath             string
+	CORSOrigin         string
 }
 
 func Load() *Config {
@@ -17,6 +18,7 @@ func Load() *Config {
 		AlertmanagerURL:    getEnv("ALERTMANAGER_URL", ""),
 		AlertmanagerToggle: getEnv("ALERTMANAGER_URL", "") != "",
 		DBPath:             getEnv("DB_PATH", "/data/servicepatrol.db"),
+		CORSOrigin:         getEnv("CORS_ORIGIN", "*"),
 	}
 }
 
