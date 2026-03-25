@@ -7,18 +7,23 @@ import (
 	"log"
 	"time"
 
+	"github.com/SandrZeus/ServicePatrol/internal/alertmanager"
 	"github.com/SandrZeus/ServicePatrol/internal/db"
 )
 
 type Scheduler struct {
 	db      *sql.DB
 	cancels map[int]context.CancelFunc
+	alerter *alertmanager.AlertmanagerClient
+	failing map[int]bool
 }
 
-func NewScheduler(db *sql.DB) *Scheduler {
+func NewScheduler(db *sql.DB, alerter *alertmanager.AlertmanagerClient) *Scheduler {
 	return &Scheduler{
 		db:      db,
 		cancels: make(map[int]context.CancelFunc),
+		alerter: alerter,
+		failing: make(map[int]bool),
 	}
 }
 
@@ -65,6 +70,20 @@ func (s *Scheduler) run(ctx context.Context, target *db.Target) {
 			err := db.AddCheck(s.db, result)
 			if err != nil {
 				log.Printf("could not add a check in scheduler: %v", err)
+			}
+			alert := s.alerter
+			if alert != nil {
+				if !result.Success && !s.failing[target.ID] {
+					if err := s.alerter.Fire(target); err != nil {
+						log.Printf("could not fire alert: %v", err)
+					}
+					s.failing[target.ID] = true
+				} else if result.Success && s.failing[target.ID] {
+					if err := s.alerter.Resolve(target); err != nil {
+						log.Printf("could not resolve alert: %v", err)
+					}
+					s.failing[target.ID] = false
+				}
 			}
 		case <-ctx.Done():
 			return
