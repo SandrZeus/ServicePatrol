@@ -10,7 +10,7 @@ echo "→ building Go binary..."
 CGO_ENABLED=1 go build -o servicepatrol ./cmd/server/main.go
 
 echo "→ building Docker image..."
-sudo podman build --no-cache -t docker.io/library/servicepatrol:latest .
+sudo podman build --network=host --no-cache -t docker.io/library/servicepatrol:latest .
 sudo podman save docker.io/library/servicepatrol:latest | sudo k3s ctr images import -
 rm servicepatrol
 
