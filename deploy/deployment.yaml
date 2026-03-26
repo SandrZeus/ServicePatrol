@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicepatrol
+  namespace: servicepatrol
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: servicepatrol
+  template:
+    metadata:
+      labels:
+        app: servicepatrol
+    spec:
+      containers:
+        - name: servicepatrol
+          image: servicepatrol:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: servicepatrol-config
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: servicepatrol-data
