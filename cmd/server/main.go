@@ -47,6 +47,7 @@ func main() {
 	mux := http.NewServeMux()
 	th := handlers.NewTargetHandler(database, sched)
 	hh := handlers.NewHistoryHandler(database)
+	eh := handlers.NewEventsHandler(bus)
 	mux.HandleFunc("/api/targets", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -73,6 +74,7 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+	mux.HandleFunc("/api/events", eh.Stream)
 
 	addr := ":" + cfg.ServerPort
 	log.Printf("server started on %s", addr)

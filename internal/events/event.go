@@ -5,7 +5,7 @@ import "time"
 type EventType string
 
 const (
-	EventCheckComplete EventType = "check_compile"
+	EventCheckComplete EventType = "check_complete"
 	EventStateChange   EventType = "state_change"
 )
 
@@ -14,7 +14,7 @@ type Event struct {
 	TargetID int       `json:"target_id"`
 	At       time.Time `json:"at"`
 
-	Success        bool    `json:"success,omitempty"`
+	Success        bool    `json:"success"`
 	StatusCode     int     `json:"status_code,omitempty"`
 	ResponseTimeMS int     `json:"response_time_ms,omitempty"`
 	ErrorMessage   *string `json:"error_message,omitempty"`
