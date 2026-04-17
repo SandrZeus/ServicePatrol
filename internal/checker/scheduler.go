@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/SandrZeus/ServicePatrol/internal/alertmanager"
@@ -13,6 +14,7 @@ import (
 
 type Scheduler struct {
 	db      *sql.DB
+	mu      sync.Mutex
 	cancels map[int]context.CancelFunc
 	alerter *alertmanager.AlertmanagerClient
 	failing map[int]bool
@@ -42,9 +44,9 @@ func (s *Scheduler) StartAll() error {
 }
 
 func (s *Scheduler) Start(target *db.Target) {
-	if _, exists := s.cancels[target.ID]; exists {
-		s.Stop(target.ID)
-	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.stopLocked(target.ID)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancels[target.ID] = cancel
@@ -52,11 +54,9 @@ func (s *Scheduler) Start(target *db.Target) {
 }
 
 func (s *Scheduler) Stop(targetID int) {
-	cancel, exists := s.cancels[targetID]
-	if exists {
-		cancel()
-		delete(s.cancels, targetID)
-	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.stopLocked(targetID)
 }
 
 func (s *Scheduler) run(ctx context.Context, target *db.Target) {
@@ -71,22 +71,40 @@ func (s *Scheduler) run(ctx context.Context, target *db.Target) {
 			if err != nil {
 				log.Printf("could not add a check in scheduler: %v", err)
 			}
-			alert := s.alerter
-			if alert != nil {
-				if !result.Success && !s.failing[target.ID] {
-					if err := s.alerter.Fire(target); err != nil {
-						log.Printf("could not fire alert: %v", err)
-					}
-					s.failing[target.ID] = true
-				} else if result.Success && s.failing[target.ID] {
-					if err := s.alerter.Resolve(target); err != nil {
-						log.Printf("could not resolve alert: %v", err)
-					}
-					s.failing[target.ID] = false
+
+			if s.alerter == nil {
+				continue
+			}
+
+			s.mu.Lock()
+			wasFailing := s.failing[target.ID]
+			s.mu.Unlock()
+
+			switch {
+			case !result.Success && !wasFailing:
+				if err := s.alerter.Fire(target); err != nil {
+					log.Printf("could not fire alert: %v", err)
 				}
+				s.mu.Lock()
+				s.failing[target.ID] = true
+				s.mu.Unlock()
+			case result.Success && wasFailing:
+				if err := s.alerter.Resolve(target); err != nil {
+					log.Printf("could not resolve alert: %v", err)
+				}
+				s.mu.Lock()
+				s.failing[target.ID] = false
+				s.mu.Unlock()
 			}
 		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+func (s *Scheduler) stopLocked(targetID int) {
+	if cancel, exists := s.cancels[targetID]; exists {
+		cancel()
+		delete(s.cancels, targetID)
 	}
 }

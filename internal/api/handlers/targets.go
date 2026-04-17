@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -30,7 +31,9 @@ func (h *TargetHandler) GetAllTargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(targets)
+	if err := json.NewEncoder(w).Encode(targets); err != nil {
+		log.Printf("could not encode response: %v", err)
+	}
 }
 
 func (h *TargetHandler) GetTargetByID(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +51,9 @@ func (h *TargetHandler) GetTargetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(target)
+	if err := json.NewEncoder(w).Encode(target); err != nil {
+		log.Printf("could not encode response: %v", err)
+	}
 }
 
 func (h *TargetHandler) CreateTarget(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +70,9 @@ func (h *TargetHandler) CreateTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.scheduler.Start(target)
+	if target.Active {
+		h.scheduler.Start(target)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(target)
@@ -95,7 +102,9 @@ func (h *TargetHandler) UpdateTarget(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.scheduler.Stop(target.ID)
-	h.scheduler.Start(target)
+	if target.Active {
+		h.scheduler.Start(target)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(target)
