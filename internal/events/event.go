@@ -5,8 +5,8 @@ import "time"
 type EventType string
 
 const (
-	EventCheckCompile EventType = "check_compile"
-	EventStateChange  EventType = "state_change"
+	EventCheckComplete EventType = "check_compile"
+	EventStateChange   EventType = "state_change"
 )
 
 type Event struct {

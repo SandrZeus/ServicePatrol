@@ -11,6 +11,7 @@ import (
 	"github.com/SandrZeus/ServicePatrol/internal/checker"
 	"github.com/SandrZeus/ServicePatrol/internal/config"
 	"github.com/SandrZeus/ServicePatrol/internal/db"
+	"github.com/SandrZeus/ServicePatrol/internal/events"
 	"github.com/joho/godotenv"
 )
 
@@ -25,7 +26,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			log.Printf("could not close database: %v", err)
+		}
+	}()
 
 	var alerter *alertmanager.AlertmanagerClient
 
@@ -33,7 +38,8 @@ func main() {
 		alerter = alertmanager.NewAlertmanagerClient(cfg.AlertmanagerURL)
 	}
 
-	sched := checker.NewScheduler(database, alerter)
+	bus := events.NewBus()
+	sched := checker.NewScheduler(database, alerter, bus)
 	if err := sched.StartAll(); err != nil {
 		log.Fatal(err)
 	}
